@@ -39,13 +39,24 @@ struct NavigationAppPickerView: View {
                     appsList
                 }
             }
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if os(iOS) || os(tvOS) || os(watchOS) || os(visionOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                #elseif os(macOS)
+                // Use a macOS-supported placement
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
             .onAppear {
                 availableApps = NavigationService.shared.getAvailableNavigationApps()

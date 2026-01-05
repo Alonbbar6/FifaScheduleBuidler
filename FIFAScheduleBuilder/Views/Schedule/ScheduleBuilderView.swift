@@ -74,8 +74,8 @@ struct ScheduleBuilderView: View {
                         Text("Build Your Game-Day Schedule")
                             .font(.system(.title, design: .rounded, weight: .bold))
                             .multilineTextAlignment(.center)
-                        
-                        Text("Get a custom schedule for just $2.99")
+
+                        Text("Try it free • Upgrade for unlimited schedules")
                             .font(.title3)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -400,25 +400,74 @@ struct ScheduleBuilderView: View {
                     // Generate Button
                     if viewModel.canGenerate {
                         VStack(spacing: 12) {
-                            Button {
-                                viewModel.showingPaywall = true
-                            } label: {
-                                HStack {
-                                    Image(systemName: "sparkles")
-                                    Text("Continue to Purchase")
-                                    Image(systemName: "sparkles")
+                            if viewModel.canCreateFreeSchedule {
+                                // FREE users creating their first schedule
+                                Button {
+                                    Task {
+                                        await viewModel.generateSchedule()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "sparkles")
+                                        Text("Generate My Schedule")
+                                        Image(systemName: "sparkles")
+                                    }
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 56)
                                 }
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
-                            }
-                            .buttonStyle(.borderedProminent)
-                            .controlSize(.large)
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
 
-                            Text("Secure payment • Instant delivery • 30-day guarantee")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                                .multilineTextAlignment(.center)
+                                Text("Free • Upgrade anytime for unlimited schedules")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            } else if viewModel.isPremiumUser {
+                                // PREMIUM users - unlimited schedules
+                                Button {
+                                    Task {
+                                        await viewModel.generateSchedule()
+                                    }
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "crown.fill")
+                                        Text("Generate My Schedule")
+                                        Image(systemName: "crown.fill")
+                                    }
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 56)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+
+                                Text("Premium • Unlimited schedules")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            } else {
+                                // FREE users who hit their limit - show paywall
+                                Button {
+                                    viewModel.showingPaywall = true
+                                } label: {
+                                    HStack {
+                                        Image(systemName: "lock.fill")
+                                        Text("Upgrade to Create More")
+                                        Image(systemName: "lock.fill")
+                                    }
+                                    .font(.headline)
+                                    .frame(maxWidth: .infinity)
+                                    .frame(height: 56)
+                                }
+                                .buttonStyle(.borderedProminent)
+                                .controlSize(.large)
+
+                                Text("You've used your free schedule • Upgrade for $4.99")
+                                    .font(.caption)
+                                    .foregroundColor(.secondary)
+                                    .multilineTextAlignment(.center)
+                            }
                         }
                         .padding(.top, 20)
                         .transition(.scale.combined(with: .opacity))
@@ -474,14 +523,22 @@ struct ScheduleBuilderView: View {
             )
         }
         .sheet(isPresented: $viewModel.showingPaywall) {
-            if let game = viewModel.selectedGame {
-                SchedulePaywallView(game: game) {
-                    // On purchase complete, generate schedule
-                    Task {
-                        await viewModel.generateSchedule()
-                    }
-                }
+            SchedulePaywallView(game: viewModel.selectedGame) {
+                // On purchase complete, user is now premium
+                // They can continue creating unlimited schedules
             }
+        }
+        .alert(viewModel.errorTitle, isPresented: $viewModel.showingError) {
+            if viewModel.canRetry {
+                Button("Try Again") {
+                    viewModel.retryGeneration()
+                }
+                Button("Cancel", role: .cancel) { }
+            } else {
+                Button("OK", role: .cancel) { }
+            }
+        } message: {
+            Text(viewModel.errorMessage)
         }
     }
 }
@@ -648,8 +705,15 @@ class ScheduleBuilderViewModel: ObservableObject {
     @Published var userCoordinate: Coordinate?
     @Published var isLoadingLocation = false
 
+    // Error handling
+    @Published var showingError = false
+    @Published var errorTitle = ""
+    @Published var errorMessage = ""
+    @Published var canRetry = false
+
     // Services
     private let persistenceService = SchedulePersistenceService.shared
+    private let premiumManager = PremiumManager.shared
     private let notificationService = NotificationService.shared
     private let locationManager = LocationManager.shared
     private var locationCancellable: AnyCancellable?
@@ -659,16 +723,20 @@ class ScheduleBuilderViewModel: ObservableObject {
             return false
         }
 
-        // If driving, must have parking selected
-        if transportationMode.requiresParking {
-            return selectedParkingSpot != nil
-        }
-
+        // Parking is now optional - users can skip it and find a spot later
         return true
     }
 
     var needsParkingSelection: Bool {
         return transportationMode.requiresParking && selectedParkingSpot == nil
+    }
+
+    var canCreateFreeSchedule: Bool {
+        return persistenceService.canCreateNewSchedule()
+    }
+
+    var isPremiumUser: Bool {
+        return premiumManager.isPremium
     }
     
     func selectGame(_ game: WorldCupGame) {
@@ -796,11 +864,62 @@ class ScheduleBuilderViewModel: ObservableObject {
             await notificationService.scheduleNotifications(for: schedule)
         } catch {
             // Handle error - show alert to user
-            print("Failed to generate schedule: \(error.localizedDescription)")
+            print("❌ Failed to generate schedule: \(error.localizedDescription)")
+
             await MainActor.run {
-                // TODO: Show error alert to user
-                // For now, we'll just log the error
+                handleError(error)
             }
+        }
+    }
+
+    // MARK: - Error Handling
+
+    /// Handle different types of errors and show appropriate alerts
+    private func handleError(_ error: Error) {
+        print("🚨 Handling error: \(error)")
+
+        // Determine error type and set appropriate message
+        let errorString = error.localizedDescription.lowercased()
+
+        if errorString.contains("network") || errorString.contains("internet") || errorString.contains("connection") {
+            // Network error
+            errorTitle = "Network Error"
+            errorMessage = "Unable to connect to the internet. Please check your connection and try again."
+            canRetry = true
+
+        } else if errorString.contains("location") || errorString.contains("denied") {
+            // Location error
+            errorTitle = "Location Access Denied"
+            errorMessage = "Please enable location services in Settings to generate personalized schedules."
+            canRetry = false
+
+        } else if errorString.contains("api") || errorString.contains("key") {
+            // API error
+            errorTitle = "Service Temporarily Unavailable"
+            errorMessage = "We're experiencing technical difficulties. Please try again in a few moments."
+            canRetry = true
+
+        } else if errorString.contains("timeout") {
+            // Timeout error
+            errorTitle = "Request Timed Out"
+            errorMessage = "The request took too long. Please check your internet connection and try again."
+            canRetry = true
+
+        } else {
+            // Generic error
+            errorTitle = "Something Went Wrong"
+            errorMessage = "We encountered an unexpected error: \(error.localizedDescription)\n\nPlease try again."
+            canRetry = true
+        }
+
+        showingError = true
+    }
+
+    /// Retry the last failed operation
+    func retryGeneration() {
+        showingError = false
+        Task {
+            await generateSchedule()
         }
     }
 }

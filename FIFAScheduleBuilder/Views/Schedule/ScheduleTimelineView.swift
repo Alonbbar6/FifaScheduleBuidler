@@ -4,12 +4,17 @@ struct ScheduleTimelineView: View {
     let schedule: GameSchedule
     @Environment(\.dismiss) private var dismiss
     @StateObject private var crowdUpdateService = CrowdUpdateService.shared
+    @StateObject private var persistenceService = SchedulePersistenceService.shared
+    @StateObject private var premiumManager = PremiumManager.shared
     @State private var showingCelebration = false
     @State private var showingMap = false
     @State private var showingNavigationPicker = false
     @State private var isRefreshing = false
     @State private var showingChatbot = false
     @State private var showingIndoorCompass = false
+    @State private var showingSaveConfirmation = false
+    @State private var showingPremiumPaywall = false
+    @State private var isSaved = false
     
     var body: some View {
         NavigationStack {
@@ -148,16 +153,28 @@ struct ScheduleTimelineView: View {
                         .controlSize(.large)
 
                         Button {
-                            // TODO: Save schedule and enable notifications
-                            dismiss()
+                            saveScheduleAndNotifications()
                         } label: {
-                            Text("Save & Enable Notifications")
-                                .font(.headline)
-                                .frame(maxWidth: .infinity)
-                                .frame(height: 56)
+                            HStack {
+                                Image(systemName: isSaved ? "checkmark.circle.fill" : "bell.badge.fill")
+                                Text(isSaved ? "Schedule Saved!" : "Save & Enable Notifications")
+                            }
+                            .font(.headline)
+                            .frame(maxWidth: .infinity)
+                            .frame(height: 56)
                         }
-                        .buttonStyle(.bordered)
+                        .buttonStyle(.borderedProminent)
                         .controlSize(.large)
+                        .disabled(isSaved)
+                        .alert("Schedule Saved!", isPresented: $showingSaveConfirmation) {
+                            Button("View My Schedules") {
+                                // Navigate to schedules list
+                                dismiss()
+                            }
+                            Button("OK", role: .cancel) { }
+                        } message: {
+                            Text("Your schedule has been saved and notifications are enabled. We'll remind you at each step!")
+                        }
 
                         Button {
                             // TODO: Share schedule
@@ -179,10 +196,40 @@ struct ScheduleTimelineView: View {
                 .padding(.bottom, 80) // Add padding for floating chat button
             }
 
-            // Floating AI Chat Button
-            FloatingChatButton(isShowingChat: $showingChatbot)
-                .padding(.trailing, 20)
-                .padding(.bottom, 20)
+            // Floating AI Chat Button (Premium Only)
+            Button {
+                if premiumManager.canAccessAIChatbot {
+                    showingChatbot = true
+                } else {
+                    showingPremiumPaywall = true
+                }
+            } label: {
+                ZStack {
+                    Circle()
+                        .fill(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
+                            )
+                        )
+                        .frame(width: 60, height: 60)
+                        .shadow(color: .black.opacity(0.3), radius: 8, y: 4)
+
+                    VStack(spacing: 2) {
+                        Image(systemName: premiumManager.canAccessAIChatbot ? "message.fill" : "lock.fill")
+                            .font(.system(size: 20))
+                            .foregroundColor(.white)
+
+                        Text("AI")
+                            .font(.caption2)
+                            .fontWeight(.bold)
+                            .foregroundColor(.white)
+                    }
+                }
+            }
+            .padding(.trailing, 20)
+            .padding(.bottom, 20)
         }
         #if os(iOS)
         .fullScreenCover(isPresented: $showingMap) {
@@ -209,8 +256,41 @@ struct ScheduleTimelineView: View {
         .sheet(isPresented: $showingChatbot) {
             ChatbotView(schedule: schedule)
         }
+        .sheet(isPresented: $showingPremiumPaywall) {
+            SchedulePaywallView(game: nil, onPurchaseComplete: {
+                // Refresh premium status after purchase
+            })
+        }
         .fullScreenCover(isPresented: $showingIndoorCompass) {
             IndoorCompassView(schedule: schedule)
+        }
+    }
+
+    // MARK: - Helper Methods
+
+    /// Save schedule and enable notifications
+    private func saveScheduleAndNotifications() {
+        print("💾 Saving schedule...")
+
+        // Save schedule using persistence service
+        let success = persistenceService.saveSchedule(schedule)
+
+        if success {
+            print("✅ Schedule saved successfully!")
+
+            // Enable notifications
+            Task {
+                await NotificationService.shared.scheduleNotifications(for: schedule)
+                print("🔔 Notifications scheduled")
+
+                await MainActor.run {
+                    isSaved = true
+                    showingSaveConfirmation = true
+                }
+            }
+        } else {
+            print("❌ Failed to save schedule")
+            // TODO: Show error alert
         }
     }
 }

@@ -1,5 +1,12 @@
 import Foundation
+
+#if canImport(UIKit)
 import UIKit
+#endif
+
+#if canImport(AppKit)
+import AppKit
+#endif
 
 /// Service for launching external food ordering apps (Grubhub, Uber Eats, DoorDash)
 /// This is for deep linking to external apps, separate from the in-app ordering service
@@ -54,7 +61,7 @@ class FoodAppDeepLinkService {
     func stadiumAppAvailable(for stadium: Stadium) -> Bool {
         guard let scheme = stadium.foodOrderingAppScheme else { return false }
         guard let url = URL(string: "\(scheme)://") else { return false }
-        return UIApplication.shared.canOpenURL(url)
+        return canOpenURL(url)
     }
 
     /// Open stadium's official food ordering app
@@ -73,7 +80,7 @@ class FoodAppDeepLinkService {
 
         print("🏟️ FoodAppDeepLinkService: Opening \(stadium.foodOrderingAppName ?? "stadium app") with URL: \(url)")
 
-        UIApplication.shared.open(url) { success in
+        openURL(url) { success in
             if success {
                 print("✅ Successfully opened stadium app for \(stadium.name)")
             } else {
@@ -82,7 +89,7 @@ class FoodAppDeepLinkService {
         }
     }
 
-    /// Open stadium's food ordering website in Safari
+    /// Open stadium's food ordering website in the default browser
     func openStadiumWebsite(stadium: Stadium) {
         guard let urlString = stadium.foodOrderingWebURL else {
             print("❌ No food ordering website configured for \(stadium.name)")
@@ -96,7 +103,7 @@ class FoodAppDeepLinkService {
 
         print("🌐 FoodAppDeepLinkService: Opening \(stadium.name) website: \(url)")
 
-        UIApplication.shared.open(url) { success in
+        openURL(url) { success in
             if success {
                 print("✅ Successfully opened website for \(stadium.name)")
             } else {
@@ -129,7 +136,7 @@ class FoodAppDeepLinkService {
     /// Check if a specific food app is installed
     func canOpenApp(_ app: FoodApp) -> Bool {
         guard let url = URL(string: app.urlScheme) else { return false }
-        return UIApplication.shared.canOpenURL(url)
+        return canOpenURL(url)
     }
 
     /// Open food ordering app or website
@@ -167,7 +174,7 @@ class FoodAppDeepLinkService {
 
         print("🍔 FoodAppDeepLinkService: Opening \(app.rawValue) with URL: \(orderURL)")
 
-        UIApplication.shared.open(orderURL) { success in
+        openURL(orderURL) { success in
             if success {
                 print("✅ FoodAppDeepLinkService: Successfully opened \(app.rawValue)")
             } else {
@@ -247,5 +254,40 @@ class FoodAppDeepLinkService {
         case .doorDash:
             return URL(string: "\(baseURL)/search/?q=\(stadiumQuery)")
         }
+    }
+
+    // MARK: - Platform helpers
+
+    private func canOpenURL(_ url: URL) -> Bool {
+        #if canImport(UIKit)
+        return UIApplication.shared.canOpenURL(url)
+        #elseif canImport(AppKit)
+        // AppKit does not provide a direct canOpenURL equivalent for custom schemes.
+        // As a conservative approach, return true for http/https and for known custom schemes we intend to try.
+        if let scheme = url.scheme?.lowercased() {
+            if scheme == "http" || scheme == "https" {
+                return true
+            }
+            // For custom schemes, we can't reliably check without LaunchServices calls.
+            // Return true to attempt open; openURL will report failure in completion.
+            return true
+        }
+        return false
+        #else
+        return false
+        #endif
+    }
+
+    private func openURL(_ url: URL, completion: @escaping (Bool) -> Void) {
+        #if canImport(UIKit)
+        UIApplication.shared.open(url, options: [:]) { success in
+            completion(success)
+        }
+        #elseif canImport(AppKit)
+        let success = NSWorkspace.shared.open(url)
+        completion(success)
+        #else
+        completion(false)
+        #endif
     }
 }

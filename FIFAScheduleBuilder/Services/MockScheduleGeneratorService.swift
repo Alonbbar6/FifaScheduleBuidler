@@ -291,11 +291,11 @@ class MockScheduleGeneratorService {
             departureTime = transitTime.addingTimeInterval(-5 * 60)
         }
 
-        // Step 1: Leave hotel
+        // Step 1: Depart from location
         steps.append(ScheduleStep(
             id: UUID().uuidString,
             scheduledTime: departureTime,
-            title: "Leave Hotel",
+            title: "Leave \(userLocation.name)",
             description: "Time to go! Grab your tickets, ID, and essentials. Check the weather!",
             icon: "figure.walk.departure",
             estimatedDuration: 5,

@@ -38,7 +38,7 @@ struct FoodAppPickerView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 12)
-                    .background(Color(.systemGray6))
+                    .background(backgroundCardColor)
                     .cornerRadius(12)
                 }
                 .padding(.top, 32)
@@ -53,9 +53,11 @@ struct FoodAppPickerView: View {
                     emptyState
                 }
             }
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
+                ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
                         dismiss()
                     }
@@ -65,6 +67,15 @@ struct FoodAppPickerView: View {
                 hasStadiumApp = FoodAppDeepLinkService.shared.stadiumAppAvailable(for: stadium)
             }
         }
+    }
+
+    // Cross-platform background color similar to systemGray6 on iOS
+    private var backgroundCardColor: Color {
+        #if canImport(UIKit)
+        return Color(UIColor.systemGray6)
+        #else
+        return Color.secondary.opacity(0.12)
+        #endif
     }
 
     private var emptyState: some View {
@@ -224,7 +235,17 @@ struct FoodAppPickerView: View {
                 }
             }
         }
-        .listStyle(.insetGrouped)
+        .modifier(CrossPlatformListStyle())
+    }
+}
+
+private struct CrossPlatformListStyle: ViewModifier {
+    func body(content: Content) -> some View {
+        #if os(iOS)
+        content.listStyle(.insetGrouped)
+        #else
+        content.listStyle(.inset)
+        #endif
     }
 }
 

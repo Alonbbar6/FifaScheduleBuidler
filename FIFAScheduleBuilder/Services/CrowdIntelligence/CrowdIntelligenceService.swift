@@ -2,8 +2,12 @@ import Foundation
 import CoreLocation
 
 /// Service for estimating and tracking crowd levels along routes and at venues
+/// Now enhanced with REAL transit data from Transit Land API
 class CrowdIntelligenceService {
     static let shared = CrowdIntelligenceService()
+
+    // MARK: - Services
+    private let transitService = TransitCrowdDataService()
 
     private init() {}
 
@@ -36,6 +40,7 @@ class CrowdIntelligenceService {
     }
 
     /// Get crowd forecast for a stadium at a specific time
+    /// NOW WITH REAL TRANSIT DATA!
     /// - Parameters:
     ///   - stadium: The stadium to check
     ///   - time: The time to check (usually kickoff time)
@@ -44,34 +49,78 @@ class CrowdIntelligenceService {
         for stadium: Stadium,
         at time: Date
     ) async -> StadiumCrowdForecast {
-        // Calculate time until event
-        let hoursUntilEvent = time.timeIntervalSinceNow / 3600
 
-        // Crowd builds up before the game
-        let crowdIntensity: Double
+        print("🎯 CrowdIntelligence: Generating forecast for \(stadium.name)")
+
+        // STEP 1: Time-based prediction (baseline)
+        let hoursUntilEvent = time.timeIntervalSinceNow / 3600
+        let timeBasedIntensity: Double
+
         switch hoursUntilEvent {
         case ...(-0.5):
-            // After kickoff - crowds dispersing
-            crowdIntensity = 0.3
+            timeBasedIntensity = 0.3  // After kickoff - crowds dispersing
         case (-0.5)..<0:
-            // Just before kickoff - peak crowds
-            crowdIntensity = 1.0
+            timeBasedIntensity = 1.0  // Just before kickoff - peak crowds
         case 0..<0.5:
-            // 30 min before - very high
-            crowdIntensity = 0.95
+            timeBasedIntensity = 0.95 // 30 min before - very high
         case 0.5..<1.0:
-            // 30-60 min before - high
-            crowdIntensity = 0.8
+            timeBasedIntensity = 0.8  // 30-60 min before - high
         case 1.0..<2.0:
-            // 1-2 hours before - building
-            crowdIntensity = 0.6
+            timeBasedIntensity = 0.6  // 1-2 hours before - building
         case 2.0..<3.0:
-            // 2-3 hours before - moderate
-            crowdIntensity = 0.4
+            timeBasedIntensity = 0.4  // 2-3 hours before - moderate
         default:
-            // More than 3 hours before - low
-            crowdIntensity = 0.2
+            timeBasedIntensity = 0.2  // More than 3 hours before - low
         }
+
+        print("🎯 CrowdIntelligence: Time-based intensity: \(timeBasedIntensity)")
+
+        // STEP 2: Get REAL transit data
+        var transitIntensity: Double = 0.5  // Default neutral
+        var transitConfidence: Double = 0.0
+
+        do {
+            let transitData = try await transitService.getTransitBasedCrowdLevel(
+                near: stadium.coordinate,
+                radiusMeters: 1000
+            )
+
+            // Map transit crowd level to intensity
+            switch transitData.crowdLevel {
+            case .clear:
+                transitIntensity = 0.2
+            case .moderate:
+                transitIntensity = 0.5
+            case .crowded:
+                transitIntensity = 0.75
+            case .avoid:
+                transitIntensity = 0.95
+            }
+
+            transitConfidence = transitData.confidence
+
+            print("🚇 CrowdIntelligence: Transit intensity: \(transitIntensity) (confidence: \(transitConfidence))")
+            print("🚇 CrowdIntelligence: Transit reasoning: \(transitData.reasoning)")
+
+        } catch {
+            print("⚠️ CrowdIntelligence: Transit data unavailable - using time-based only")
+            print("   Error: \(error.localizedDescription)")
+        }
+
+        // STEP 3: Combine predictions (weighted average)
+        let crowdIntensity: Double
+
+        if transitConfidence > 0.5 {
+            // High confidence transit data - give it more weight
+            crowdIntensity = (timeBasedIntensity * 0.4) + (transitIntensity * 0.6)
+            print("✅ CrowdIntelligence: Using transit-weighted prediction")
+        } else {
+            // Low confidence or no transit data - mostly use time-based
+            crowdIntensity = (timeBasedIntensity * 0.8) + (transitIntensity * 0.2)
+            print("✅ CrowdIntelligence: Using time-weighted prediction")
+        }
+
+        print("🎯 CrowdIntelligence: Final combined intensity: \(crowdIntensity)")
 
         // Update entry gate crowd levels based on overall intensity
         let gatesWithCrowds = stadium.entryGates.map { gate in

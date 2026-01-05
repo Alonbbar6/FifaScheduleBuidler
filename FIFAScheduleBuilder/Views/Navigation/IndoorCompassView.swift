@@ -19,7 +19,7 @@ struct IndoorCompassView: View {
         NavigationStack {
             ZStack {
                 // Background - match app theme
-                Color(.systemBackground)
+                Color(red: 0.949, green: 0.949, blue: 0.969)
                     .ignoresSafeArea()
 
                 if let directions = compassViewModel.directions {
@@ -151,7 +151,7 @@ struct IndoorCompassView: View {
                 }
             }
             .padding()
-            .background(Color(.systemGray6))
+            .background(Color(red: 0.949, green: 0.949, blue: 0.969))
             .cornerRadius(16)
         }
     }
@@ -181,7 +181,7 @@ struct IndoorCompassView: View {
                         .font(.system(size: 14, weight: .semibold))
                 }
                 .padding()
-                .background(Color(.systemGray6))
+                .background(Color(red: 0.949, green: 0.949, blue: 0.969))
                 .contentShape(Rectangle())
             }
             .buttonStyle(.plain)
@@ -227,11 +227,11 @@ struct IndoorCompassView: View {
                             Spacer()
                         }
                         .padding()
-                        .background(Color(.systemBackground))
+                        .background(Color.white)
                         .cornerRadius(12)
                         .overlay(
                             RoundedRectangle(cornerRadius: 12)
-                                .stroke(Color(.systemGray5), lineWidth: 1)
+                                .stroke(Color.gray.opacity(0.2), lineWidth: 1)
                         )
                     }
 
@@ -267,7 +267,7 @@ struct IndoorCompassView: View {
                             }
                         }
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
                         .cornerRadius(12)
                     }
                 }
@@ -275,8 +275,8 @@ struct IndoorCompassView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .background(Color(.systemBackground))
-        .cornerRadius(20, corners: [.topLeft, .topRight])
+        .background(Color.white)
+        .clipShape(UnevenRoundedRectangle(topLeadingRadius: 20, topTrailingRadius: 20))
         .shadow(color: Color.black.opacity(0.1), radius: 10, y: -5)
     }
 
@@ -375,28 +375,6 @@ class IndoorCompassViewModel: ObservableObject {
         Task {
             await loadDirections()
         }
-    }
-}
-
-// MARK: - Helper Extension for Corner Radius
-
-extension View {
-    func cornerRadius(_ radius: CGFloat, corners: UIRectCorner) -> some View {
-        clipShape(RoundedCorner(radius: radius, corners: corners))
-    }
-}
-
-struct RoundedCorner: Shape {
-    var radius: CGFloat = .infinity
-    var corners: UIRectCorner = .allCorners
-
-    func path(in rect: CGRect) -> Path {
-        let path = UIBezierPath(
-            roundedRect: rect,
-            byRoundingCorners: corners,
-            cornerRadii: CGSize(width: radius, height: radius)
-        )
-        return Path(path.cgPath)
     }
 }
 

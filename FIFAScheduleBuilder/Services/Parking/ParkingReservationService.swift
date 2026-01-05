@@ -1,5 +1,7 @@
 import Foundation
+#if canImport(UIKit)
 import UIKit
+#endif
 
 /// Service for launching external parking reservation apps (ParkMobile, SpotHero, ParkWhiz)
 class ParkingReservationService {
@@ -51,6 +53,7 @@ class ParkingReservationService {
 
     /// Get list of parking apps that are installed on the device
     func getAvailableParkingApps() -> [ParkingApp] {
+        #if canImport(UIKit)
         var availableApps: [ParkingApp] = []
 
         for app in ParkingApp.allCases {
@@ -65,12 +68,21 @@ class ParkingReservationService {
         }
 
         return availableApps
+        #else
+        // On platforms without UIKit, deep linking to apps isn't supported.
+        // Return all to enable web fallbacks.
+        return ParkingApp.allCases
+        #endif
     }
 
     /// Check if a specific parking app is installed
     func canOpenApp(_ app: ParkingApp) -> Bool {
+        #if canImport(UIKit)
         guard let url = URL(string: app.urlScheme) else { return false }
         return UIApplication.shared.canOpenURL(url)
+        #else
+        return false
+        #endif
     }
 
     /// Open parking reservation app or website
@@ -118,6 +130,7 @@ class ParkingReservationService {
 
         print("🅿️ ParkingReservationService: Opening \(app.rawValue) with URL: \(reservationURL)")
 
+        #if canImport(UIKit)
         UIApplication.shared.open(reservationURL) { success in
             if success {
                 print("✅ ParkingReservationService: Successfully opened \(app.rawValue)")
@@ -125,6 +138,10 @@ class ParkingReservationService {
                 print("❌ ParkingReservationService: Failed to open \(app.rawValue)")
             }
         }
+        #else
+        // On non-UIKit platforms, just print the URL (caller can handle opening if desired)
+        // Optionally, you could use NSWorkspace on macOS; but keeping this service iOS-centric.
+        #endif
     }
 
     // MARK: - Deep Link Building

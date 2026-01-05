@@ -3,6 +3,8 @@ import Combine
 
 /// Service for persisting and retrieving game schedules
 /// Uses UserDefaults for simple, reliable storage
+/// FREE TIER: Limited to 1 schedule
+/// PREMIUM: Unlimited schedules
 class SchedulePersistenceService: ObservableObject {
     static let shared = SchedulePersistenceService()
 
@@ -16,6 +18,7 @@ class SchedulePersistenceService: ObservableObject {
     private let schedulesKey = "saved_game_schedules"
     private let encoder = JSONEncoder()
     private let decoder = JSONDecoder()
+    private let premiumManager = PremiumManager.shared
 
     // MARK: - Initialization
 
@@ -30,19 +33,40 @@ class SchedulePersistenceService: ObservableObject {
 
     // MARK: - Public Methods
 
+    /// Check if user can create a new schedule
+    /// FREE users: 1 schedule limit
+    /// PREMIUM users: Unlimited
+    /// - Returns: True if user can create a new schedule
+    func canCreateNewSchedule() -> Bool {
+        return premiumManager.canCreateSchedule(currentCount: savedSchedules.count)
+    }
+
+    /// Get remaining free schedules for free users
+    /// - Returns: Number of remaining free schedules (or Int.max for premium)
+    func remainingFreeSchedules() -> Int {
+        return premiumManager.remainingFreeSchedules(currentCount: savedSchedules.count)
+    }
+
     /// Save a new schedule
     /// - Parameter schedule: The schedule to save
-    /// - Returns: Success or failure
+    /// - Returns: Success or failure (false if limit reached for free users)
     @discardableResult
     func saveSchedule(_ schedule: GameSchedule) -> Bool {
         print("💾 SchedulePersistence: Saving schedule \(schedule.id)")
 
         // Check if schedule already exists
         if let index = savedSchedules.firstIndex(where: { $0.id == schedule.id }) {
-            // Update existing schedule
+            // Update existing schedule (always allowed)
             print("📝 Updating existing schedule at index \(index)")
             savedSchedules[index] = schedule
         } else {
+            // Check if user can create a new schedule (FREE limit check)
+            if !canCreateNewSchedule() {
+                print("⚠️ Cannot create new schedule: FREE tier limit reached (\(PremiumManager.FREE_SCHEDULE_LIMIT) schedule max)")
+                print("💎 Upgrade to Premium for unlimited schedules")
+                return false
+            }
+
             // Add new schedule
             print("➕ Adding new schedule. Total will be: \(savedSchedules.count + 1)")
             savedSchedules.append(schedule)

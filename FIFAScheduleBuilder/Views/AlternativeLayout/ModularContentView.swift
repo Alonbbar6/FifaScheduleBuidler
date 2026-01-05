@@ -1,4 +1,7 @@
 import SwiftUI
+#if canImport(UIKit)
+import UIKit
+#endif
 
 /// Alternative Layout B: Feature-Separated Modular Design
 /// Features are separated into distinct modules accessible from a main hub
@@ -231,6 +234,7 @@ struct ModularScheduleView: View {
             }
             .navigationTitle("My Schedules")
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button {
                         showingBuilder = true
@@ -238,19 +242,33 @@ struct ModularScheduleView: View {
                         Image(systemName: "plus")
                     }
                 }
-
                 if !persistenceService.savedSchedules.isEmpty {
                     ToolbarItem(placement: .navigationBarLeading) {
                         EditButton()
                     }
                 }
+                #else
+                ToolbarItem(placement: .primaryAction) {
+                    Button {
+                        showingBuilder = true
+                    } label: {
+                        Image(systemName: "plus")
+                    }
+                }
+                #endif
             }
             .sheet(isPresented: $showingBuilder) {
                 ScheduleBuilderView()
             }
+            #if os(iOS)
             .fullScreenCover(item: $selectedSchedule) { schedule in
                 ScheduleTimelineView(schedule: schedule)
             }
+            #else
+            .sheet(item: $selectedSchedule) { schedule in
+                ScheduleTimelineView(schedule: schedule)
+            }
+            #endif
         }
     }
 }
@@ -351,7 +369,7 @@ struct ModularWayfindingView: View {
                             }
                         }
                         .padding()
-                        .background(Color(.systemGray6))
+                        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
                         .cornerRadius(12)
                         .padding(.horizontal, 40)
 
@@ -402,6 +420,7 @@ struct ModularWayfindingView: View {
             .navigationTitle("Wayfinding")
             .toolbar {
                 if selectedSchedule != nil {
+                    #if os(iOS)
                     ToolbarItem(placement: .navigationBarTrailing) {
                         Button {
                             showingSchedulePicker = true
@@ -409,6 +428,15 @@ struct ModularWayfindingView: View {
                             Image(systemName: "list.bullet")
                         }
                     }
+                    #else
+                    ToolbarItem(placement: .primaryAction) {
+                        Button {
+                            showingSchedulePicker = true
+                        } label: {
+                            Image(systemName: "list.bullet")
+                        }
+                    }
+                    #endif
                 }
             }
             .sheet(isPresented: $showingSchedulePicker) {
@@ -417,11 +445,19 @@ struct ModularWayfindingView: View {
                     selectedSchedule: $selectedSchedule
                 )
             }
+            #if os(iOS)
             .fullScreenCover(isPresented: $showingIndoorCompass) {
                 if let schedule = selectedSchedule {
                     IndoorCompassView(schedule: schedule)
                 }
             }
+            #else
+            .sheet(isPresented: $showingIndoorCompass) {
+                if let schedule = selectedSchedule {
+                    IndoorCompassView(schedule: schedule)
+                }
+            }
+            #endif
         }
     }
 }
@@ -545,7 +581,7 @@ struct WayfindingMapView: View {
             }
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(Color.white)
         .cornerRadius(16)
         .shadow(color: Color.black.opacity(0.1), radius: 10, x: 0, y: 5)
     }
@@ -585,7 +621,7 @@ struct WayfindingMapView: View {
                     .foregroundColor(.blue)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(.systemBackground))
+                    .background(Color.white)
                     .cornerRadius(10)
                     .shadow(color: Color.black.opacity(0.1), radius: 5)
                 }
@@ -604,7 +640,7 @@ struct WayfindingMapView: View {
                     .foregroundColor(.red)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(.systemBackground))
+                    .background(Color.white)
                     .cornerRadius(10)
                     .shadow(color: Color.black.opacity(0.1), radius: 5)
                 }
@@ -623,7 +659,7 @@ struct WayfindingMapView: View {
                     .foregroundColor(.green)
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, 10)
-                    .background(Color(.systemBackground))
+                    .background(Color.white)
                     .cornerRadius(10)
                     .shadow(color: Color.black.opacity(0.1), radius: 5)
                 }
@@ -674,7 +710,9 @@ struct SchedulePickerSheet: View {
                 }
             }
             .navigationTitle("Choose Schedule")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -760,6 +798,7 @@ struct ModularTravelView: View {
                     )
                 }
             }
+            #if os(iOS)
             .fullScreenCover(isPresented: $showingMapNavigation) {
                 if let schedule = selectedSchedule {
                     NavigationStack {
@@ -767,6 +806,15 @@ struct ModularTravelView: View {
                     }
                 }
             }
+            #else
+            .sheet(isPresented: $showingMapNavigation) {
+                if let schedule = selectedSchedule {
+                    NavigationStack {
+                        ScheduleMapView(schedule: schedule)
+                    }
+                }
+            }
+            #endif
         }
     }
 }
@@ -898,7 +946,9 @@ struct NavigationOptionsSheet: View {
                 }
             }
             .navigationTitle("Choose Navigation")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button("Cancel") {
@@ -913,7 +963,8 @@ struct NavigationOptionsSheet: View {
         let coordinate = schedule.game.stadium.coordinate
         let name = schedule.game.stadium.name
 
-        // Use Apple Maps app URL scheme for better integration
+        #if canImport(UIKit)
+        // Use Apple Maps app URL scheme for better integration (iOS)
         var urlComponents = URLComponents()
         urlComponents.scheme = "maps"
         urlComponents.host = ""
@@ -923,7 +974,6 @@ struct NavigationOptionsSheet: View {
             URLQueryItem(name: "dirflg", value: "d") // d = driving
         ]
 
-        // If user has a starting location from schedule, add it
         if let userCoordinate = schedule.userLocation.coordinate as Coordinate? {
             urlComponents.queryItems?.append(
                 URLQueryItem(name: "saddr", value: "\(userCoordinate.latitude),\(userCoordinate.longitude)")
@@ -943,20 +993,27 @@ struct NavigationOptionsSheet: View {
         } else {
             print("❌ Failed to create Apple Maps URL")
         }
+        #else
+        // macOS: open in Maps via URL or use NSWorkspace
+        let urlString = "http://maps.apple.com/?daddr=\(coordinate.latitude),\(coordinate.longitude)&dirflg=d&q=\(name.addingPercentEncoding(withAllowedCharacters: .urlQueryAllowed) ?? "")"
+        if let url = URL(string: urlString) {
+            NSWorkspace.shared.open(url)
+            dismiss()
+        }
+        #endif
     }
 
     private func openGoogleMaps() {
         let coordinate = schedule.game.stadium.coordinate
-        let name = schedule.game.stadium.name
 
-        // Build Google Maps URL with origin if available
+        #if canImport(UIKit)
+        // Build Google Maps URL with origin if available (iOS)
         var googleMapsURL = "comgooglemaps://?daddr=\(coordinate.latitude),\(coordinate.longitude)&directionsmode=driving"
 
         if let userCoordinate = schedule.userLocation.coordinate as Coordinate? {
             googleMapsURL += "&saddr=\(userCoordinate.latitude),\(userCoordinate.longitude)"
         }
 
-        // Try to open Google Maps app first
         if let appUrl = URL(string: googleMapsURL),
            UIApplication.shared.canOpenURL(appUrl) {
             print("🗺️ Opening Google Maps app")
@@ -971,11 +1028,9 @@ struct NavigationOptionsSheet: View {
         } else {
             // Fallback to Google Maps website
             var webUrl = "https://www.google.com/maps/dir/?api=1&destination=\(coordinate.latitude),\(coordinate.longitude)"
-
             if let userCoordinate = schedule.userLocation.coordinate as Coordinate? {
                 webUrl += "&origin=\(userCoordinate.latitude),\(userCoordinate.longitude)"
             }
-
             webUrl += "&travelmode=driving"
 
             if let url = URL(string: webUrl) {
@@ -992,6 +1047,18 @@ struct NavigationOptionsSheet: View {
                 print("❌ Failed to create Google Maps web URL")
             }
         }
+        #else
+        // macOS: open Google Maps web
+        var webUrl = "https://www.google.com/maps/dir/?api=1&destination=\(coordinate.latitude),\(coordinate.longitude)"
+        if let userCoordinate = schedule.userLocation.coordinate as Coordinate? {
+            webUrl += "&origin=\(userCoordinate.latitude),\(userCoordinate.longitude)"
+        }
+        webUrl += "&travelmode=driving"
+        if let url = URL(string: webUrl) {
+            NSWorkspace.shared.open(url)
+            dismiss()
+        }
+        #endif
     }
 }
 
@@ -1029,7 +1096,7 @@ struct QuickActionCard: View {
         }
         .frame(maxWidth: .infinity)
         .frame(height: 120)
-        .background(Color(.systemGray6))
+        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
         .cornerRadius(16)
     }
 }
@@ -1056,7 +1123,7 @@ struct CompactGameCard: View {
                 .foregroundColor(.secondary)
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
         .cornerRadius(12)
     }
 }
@@ -1145,7 +1212,7 @@ struct TicketCard: View {
         }
         .padding()
         .frame(maxWidth: .infinity, alignment: .leading)
-        .background(Color(.systemGray6))
+        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
         .cornerRadius(12)
     }
 }
@@ -1182,19 +1249,29 @@ struct TicketDetailView: View {
                         InfoRow(icon: "mappin.circle", title: "Address", value: game.stadium.address)
                     }
                     .padding()
-                    .background(Color(.systemGray6))
+                    .background(Color(red: 0.949, green: 0.949, blue: 0.969))
                     .cornerRadius(12)
                 }
                 .padding()
             }
             .navigationTitle("Ticket Details")
+            #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if os(iOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Done") {
                         dismiss()
                     }
                 }
+                #else
+                ToolbarItem(placement: .primaryAction) {
+                    Button("Done") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
         }
     }
@@ -1359,7 +1436,7 @@ struct TravelScheduleCard: View {
             .cornerRadius(8)
         }
         .padding()
-        .background(Color(.systemGray6))
+        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
         .cornerRadius(12)
         .overlay(
             RoundedRectangle(cornerRadius: 12)

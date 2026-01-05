@@ -20,7 +20,15 @@ struct ScheduleMapView: View {
                 annotations: viewModel.annotations
             )
             .edgesIgnoringSafeArea(.all)
-            .background(Color(.systemBackground))
+            .background(
+                Group {
+                    #if os(iOS)
+                    Color(.systemBackground)
+                    #else
+                    Color(nsColor: .windowBackgroundColor)
+                    #endif
+                }
+            )
 
             // Top overlay - Progress card
             VStack {
@@ -34,18 +42,35 @@ struct ScheduleMapView: View {
                     .padding()
             }
         }
-        .background(Color(.systemBackground))
+        .background(
+            Group {
+                #if os(iOS)
+                Color(.systemBackground)
+                #else
+                Color(nsColor: .windowBackgroundColor)
+                #endif
+            }
+        )
         .navigationTitle("Track Schedule")
         #if !os(macOS)
         .navigationBarTitleDisplayMode(.inline)
         #endif
         .toolbar {
+            #if os(iOS)
             ToolbarItem(placement: .navigationBarTrailing) {
                 Button("Done") {
                     viewModel.stopNavigation()
                     dismiss()
                 }
             }
+            #else
+            ToolbarItem(placement: .primaryAction) {
+                Button("Done") {
+                    viewModel.stopNavigation()
+                    dismiss()
+                }
+            }
+            #endif
         }
         .onAppear {
             print("📍 ScheduleMapView appeared")

@@ -228,9 +228,16 @@ struct MySchedulesView: View {
                 #endif
             }
         }
+        // Platform-appropriate presentation
+        #if os(iOS) || os(tvOS) || os(visionOS)
         .fullScreenCover(item: $selectedSchedule) { schedule in
             ScheduleTimelineView(schedule: schedule)
         }
+        #else
+        .sheet(item: $selectedSchedule) { schedule in
+            ScheduleTimelineView(schedule: schedule)
+        }
+        #endif
     }
 
     private var emptyState: some View {

@@ -1,7 +1,7 @@
 import SwiftUI
 
 /// AI Chatbot Assistant View
-/// Only available to users who have purchased a schedule
+/// PREMIUM FEATURE: Only available to Premium subscribers ($4.99)
 struct ChatbotView: View {
     let schedule: GameSchedule
     @StateObject private var chatbot = AIChatbotService.shared
@@ -28,7 +28,7 @@ struct ChatbotView: View {
                         }
                         .padding()
                     }
-                    .onChange(of: chatbot.messages.count) { _ in
+                    .onChange(of: chatbot.messages.count) {
                         if let lastMessage = chatbot.messages.last {
                             withAnimation {
                                 proxy.scrollTo(lastMessage.id, anchor: .bottom)
@@ -44,7 +44,7 @@ struct ChatbotView: View {
                     TextField("Ask me anything about your game day...", text: $messageText, axis: .vertical)
                         .textFieldStyle(.plain)
                         .padding(12)
-                        .background(Color(.systemGray6))
+                        .background(Color(red: 0.949, green: 0.949, blue: 0.969))
                         .cornerRadius(20)
                         .focused($isTextFieldFocused)
                         .lineLimit(1...4)
@@ -59,7 +59,7 @@ struct ChatbotView: View {
                     .disabled(messageText.isEmpty || chatbot.isTyping)
                 }
                 .padding()
-                .background(Color(.systemBackground))
+                .background(Color.white)
             }
             .navigationTitle("Game Day Assistant")
             .navigationBarTitleDisplayMode(.inline)
@@ -152,9 +152,9 @@ struct ChatMessageBubble: View {
         case .user:
             return .blue
         case .assistant:
-            return Color(.systemGray5)
+            return Color(red: 0.898, green: 0.898, blue: 0.918)
         case .system:
-            return Color(.systemGray6)
+            return Color(red: 0.949, green: 0.949, blue: 0.969)
         }
     }
 
@@ -190,7 +190,7 @@ struct TypingIndicator: View {
                 .offset(y: animatingDot3 ? -5 : 0)
         }
         .padding(12)
-        .background(Color(.systemGray5))
+        .background(Color(red: 0.898, green: 0.898, blue: 0.918))
         .cornerRadius(16)
         .frame(maxWidth: .infinity, alignment: .leading)
         .onAppear {

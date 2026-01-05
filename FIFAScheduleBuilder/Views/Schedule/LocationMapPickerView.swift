@@ -92,13 +92,23 @@ struct LocationMapPickerView: View {
                 }
             }
             .navigationTitle("Select Location")
+            #if os(iOS) || os(tvOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if os(iOS) || os(tvOS) || os(visionOS)
                 ToolbarItem(placement: .navigationBarLeading) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                #else
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
             .onAppear {
                 selectedCoordinate = region.center

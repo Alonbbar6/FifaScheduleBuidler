@@ -72,7 +72,16 @@ enum CrowdLevel: String, Codable {
     case moderate = "Moderate"
     case crowded = "Crowded"
     case avoid = "Avoid"
-    
+
+    var emoji: String {
+        switch self {
+        case .clear: return "🟢"
+        case .moderate: return "🟡"
+        case .crowded: return "🟠"
+        case .avoid: return "🔴"
+        }
+    }
+
     var color: String {
         switch self {
         case .clear: return "green"
@@ -226,96 +235,30 @@ enum StepType: String, Codable {
     case milestone = "Milestone"
 }
 
-// MARK: - Mock Data for Development
+// MARK: - Real FIFA 2026 Data (Loaded from JSON)
 
 extension WorldCupGame {
-    static let mockGames: [WorldCupGame] = [
-        WorldCupGame(
-            id: "wc2026-001",
-            homeTeam: "Argentina",
-            awayTeam: "Brazil",
-            stadium: Stadium.mockStadiums[0],
-            kickoffTime: Date().addingTimeInterval(86400 * 3), // 3 days from now
-            matchday: "Group Stage - Match 1"
-        ),
-        WorldCupGame(
-            id: "wc2026-002",
-            homeTeam: "Spain",
-            awayTeam: "Germany",
-            stadium: Stadium.mockStadiums[1],
-            kickoffTime: Date().addingTimeInterval(86400 * 5), // 5 days from now
-            matchday: "Group Stage - Match 2"
-        ),
-        WorldCupGame(
-            id: "wc2026-003",
-            homeTeam: "France",
-            awayTeam: "England",
-            stadium: Stadium.mockStadiums[0],
-            kickoffTime: Date().addingTimeInterval(86400 * 7), // 7 days from now
-            matchday: "Quarter Final"
-        )
-    ]
+    /// Real FIFA World Cup 2026 games loaded from local JSON
+    /// Works offline - no internet connection required
+    static var mockGames: [WorldCupGame] {
+        WorldCupDataLoader.shared.loadGames()
+    }
+
+    /// Get upcoming games (next N matches chronologically)
+    static func upcomingGames(limit: Int = 10) -> [WorldCupGame] {
+        WorldCupDataLoader.shared.loadUpcomingGames(limit: limit)
+    }
 }
 
 extension Stadium {
-    static let mockStadiums: [Stadium] = [
-        Stadium(
-            id: "stadium-001",
-            name: "Hard Rock Stadium",
-            city: "Miami",
-            address: "347 Don Shula Dr, Miami Gardens, FL 33056",
-            coordinate: Coordinate(latitude: 25.9580, longitude: -80.2389),
-            capacity: 65326,
-            entryGates: [
-                EntryGate(
-                    id: "gate-north-a",
-                    name: "North Gate A",
-                    coordinate: Coordinate(latitude: 25.9590, longitude: -80.2389),
-                    recommendedFor: ["101-120"],
-                    capacity: 1200,
-                    currentCrowdLevel: .clear
-                ),
-                EntryGate(
-                    id: "gate-south-c",
-                    name: "South Gate C",
-                    coordinate: Coordinate(latitude: 25.9570, longitude: -80.2389),
-                    recommendedFor: ["201-220"],
-                    capacity: 1000,
-                    currentCrowdLevel: .moderate
-                ),
-                EntryGate(
-                    id: "gate-east-b",
-                    name: "East Gate B",
-                    coordinate: Coordinate(latitude: 25.9580, longitude: -80.2379),
-                    recommendedFor: ["301-320"],
-                    capacity: 800,
-                    currentCrowdLevel: .crowded
-                )
-            ],
-            foodOrderingAppScheme: "hardrockstadium",
-            foodOrderingAppName: "Hard Rock Stadium",
-            foodOrderingWebURL: "https://www.hardrockstadium.com/concessions"
-        ),
-        Stadium(
-            id: "stadium-002",
-            name: "MetLife Stadium",
-            city: "New York",
-            address: "1 MetLife Stadium Dr, East Rutherford, NJ 07073",
-            coordinate: Coordinate(latitude: 40.8128, longitude: -74.0742),
-            capacity: 82500,
-            entryGates: [
-                EntryGate(
-                    id: "gate-a",
-                    name: "Gate A",
-                    coordinate: Coordinate(latitude: 40.8138, longitude: -74.0742),
-                    recommendedFor: ["100-150"],
-                    capacity: 1500,
-                    currentCrowdLevel: .moderate
-                )
-            ],
-            foodOrderingAppScheme: "metlifestadium",
-            foodOrderingAppName: "MetLife Stadium",
-            foodOrderingWebURL: "https://www.metlifestadium.com/food-ordering"
-        )
-    ]
+    /// Real FIFA World Cup 2026 stadiums loaded from local JSON
+    /// Includes all 16 host venues across USA, Canada, and Mexico
+    static var mockStadiums: [Stadium] {
+        WorldCupDataLoader.shared.loadStadiums()
+    }
+
+    /// Get stadium by ID
+    static func stadium(withId id: String) -> Stadium? {
+        mockStadiums.first { $0.id == id }
+    }
 }

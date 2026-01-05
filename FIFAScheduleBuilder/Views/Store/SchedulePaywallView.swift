@@ -1,8 +1,8 @@
 import SwiftUI
 
 struct SchedulePaywallView: View {
-    let game: WorldCupGame
-    @StateObject private var storeManager = StoreManager.shared
+    let game: WorldCupGame?
+    @StateObject private var premiumManager = PremiumManager.shared
     @Environment(\.dismiss) private var dismiss
 
     let onPurchaseComplete: () -> Void
@@ -10,166 +10,164 @@ struct SchedulePaywallView: View {
     @State private var showingError = false
 
     var body: some View {
+        #if os(iOS)
+        NavigationView {
+            content
+                .navigationTitle("Upgrade to Premium")
+                .navigationBarTitleDisplayMode(.inline)
+                .toolbar {
+                    ToolbarItem(placement: .navigationBarTrailing) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        #else
         NavigationStack {
-            ScrollView {
-                VStack(spacing: 32) {
-                    // Header
-                    VStack(spacing: 16) {
-                        Image(systemName: "sparkles")
-                            .font(.system(size: 60))
-                            .foregroundStyle(
-                                LinearGradient(
-                                    colors: [.orange, .yellow],
-                                    startPoint: .topLeading,
-                                    endPoint: .bottomTrailing
-                                )
+            content
+                .navigationTitle("Upgrade to Premium")
+                .toolbar {
+                    ToolbarItem(placement: .primaryAction) {
+                        Button("Cancel") {
+                            dismiss()
+                        }
+                    }
+                }
+        }
+        #endif
+    }
+
+    private var content: some View {
+        ScrollView {
+            VStack(spacing: 32) {
+                // Header
+                VStack(spacing: 16) {
+                    Image(systemName: "star.circle.fill")
+                        .font(.system(size: 60))
+                        .foregroundStyle(
+                            LinearGradient(
+                                colors: [.blue, .purple],
+                                startPoint: .topLeading,
+                                endPoint: .bottomTrailing
                             )
-
-                        Text("Your Stress-Free Schedule")
-                            .font(.system(.title, design: .rounded, weight: .bold))
-                            .multilineTextAlignment(.center)
-
-                        Text("Never miss kickoff again")
-                            .font(.title3)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-                    }
-                    .padding(.top, 20)
-
-                    // Game Info
-                    GameInfoBanner(game: game)
-
-                    // What You Get
-                    VStack(alignment: .leading, spacing: 20) {
-                        Text("What You Get:")
-                            .font(.title2)
-                            .fontWeight(.bold)
-
-                        PaywallFeatureRow(
-                            icon: "map.fill",
-                            title: "Optimized Route",
-                            description: "Real-time traffic data and crowd intelligence"
                         )
 
-                        PaywallFeatureRow(
-                            icon: "door.left.hand.open",
-                            title: "Best Entry Gate",
-                            description: "Personalized for your section with shortest wait"
-                        )
+                    Text("Unlock Premium Features")
+                        .font(.system(.title, design: .rounded, weight: .bold))
+                        .multilineTextAlignment(.center)
 
-                        PaywallFeatureRow(
-                            icon: "clock.fill",
-                            title: "Step-by-Step Timeline",
-                            description: "Know exactly when to leave and what to do"
-                        )
-
-                        PaywallFeatureRow(
-                            icon: "checkmark.seal.fill",
-                            title: "On-Time Guarantee",
-                            description: "Confidence score showing your arrival probability"
-                        )
-
-                        PaywallFeatureRow(
-                            icon: "bell.fill",
-                            title: "Live Updates",
-                            description: "Real-time crowd alerts and schedule adjustments"
-                        )
-
-                        PaywallFeatureRow(
-                            icon: "safari",
-                            title: "AR Indoor Compass",
-                            description: "Navigate inside the stadium to your seat"
-                        )
-                    }
-
-                    // Social Proof
-                    SocialProofCard()
-
-                    // Price & Purchase Button
-                    VStack(spacing: 16) {
-                        HStack(alignment: .firstTextBaseline, spacing: 4) {
-                            Text(storeManager.schedulePrice)
-                                .font(.system(size: 48, weight: .bold, design: .rounded))
-                                .foregroundColor(.primary)
-
-                            Text("per schedule")
-                                .font(.subheadline)
-                                .foregroundColor(.secondary)
-                        }
-
-                        Text("One-time purchase • Instant delivery • 30-day guarantee")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                            .multilineTextAlignment(.center)
-
-                        Button {
-                            Task {
-                                let success = await storeManager.purchaseSchedule(for: game)
-                                if success {
-                                    onPurchaseComplete()
-                                    dismiss()
-                                } else if let error = storeManager.errorMessage {
-                                    showingError = true
-                                }
-                            }
-                        } label: {
-                            HStack {
-                                if storeManager.isLoading {
-                                    ProgressView()
-                                        .tint(.white)
-                                } else {
-                                    Image(systemName: "sparkles")
-                                    Text("Get My Schedule")
-                                    Image(systemName: "sparkles")
-                                }
-                            }
-                            .font(.headline)
-                            .frame(maxWidth: .infinity)
-                            .frame(height: 56)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                        .disabled(storeManager.isLoading)
-
-                        // Restore purchases link
-                        Button {
-                            Task {
-                                await storeManager.restorePurchases()
-                            }
-                        } label: {
-                            Text("Restore Purchases")
-                                .font(.caption)
-                                .foregroundColor(.blue)
-                        }
-                        .disabled(storeManager.isLoading)
-                    }
-                    .padding(.vertical, 20)
-
-                    // Fine print
-                    Text("Payment will be charged to your Apple ID account. Price shown is in USD and may vary by region.")
-                        .font(.caption2)
+                    Text("Free to try, premium for serious fans")
+                        .font(.title3)
                         .foregroundColor(.secondary)
                         .multilineTextAlignment(.center)
-                        .padding(.horizontal)
                 }
-                .padding()
-            }
-            .navigationTitle("Schedule Purchase")
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarTrailing) {
-                    Button("Cancel") {
-                        dismiss()
+                .padding(.top, 20)
+
+                // Game Info (if specific game provided)
+                if let game = game {
+                    GameInfoBanner(game: game)
+                }
+
+                // Premium Features
+                VStack(alignment: .leading, spacing: 20) {
+                    Text("Premium Features:")
+                        .font(.title2)
+                        .fontWeight(.bold)
+
+                    ForEach(premiumManager.getPremiumFeatures()) { feature in
+                        PaywallFeatureRow(
+                            icon: feature.icon,
+                            title: feature.title,
+                            description: feature.description
+                        )
                     }
                 }
-            }
-            .alert("Purchase Error", isPresented: $showingError) {
-                Button("OK", role: .cancel) {
-                    storeManager.errorMessage = nil
+
+                // Social Proof
+                SocialProofCard()
+
+                // Price & Purchase Button
+                VStack(spacing: 16) {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Text(PremiumManager.PREMIUM_PRICE)
+                            .font(.system(size: 48, weight: .bold, design: .rounded))
+                            .foregroundColor(.primary)
+
+                        Text("one-time")
+                            .font(.subheadline)
+                            .foregroundColor(.secondary)
+                    }
+
+                    Text("Unlimited schedules • AI assistance • Real-time crowds • AR navigation")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                        .multilineTextAlignment(.center)
+
+                    Button {
+                        Task {
+                            do {
+                                try await premiumManager.purchasePremium()
+                                onPurchaseComplete()
+                                dismiss()
+                            } catch {
+                                premiumManager.errorMessage = error.localizedDescription
+                                showingError = true
+                            }
+                        }
+                    } label: {
+                        HStack {
+                            if premiumManager.isProcessingPurchase {
+                                ProgressView()
+                                    .tint(.white)
+                            } else {
+                                Image(systemName: "crown.fill")
+                                Text("Upgrade to Premium")
+                                Image(systemName: "crown.fill")
+                            }
+                        }
+                        .font(.headline)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 56)
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .controlSize(.large)
+                    .disabled(premiumManager.isProcessingPurchase)
+
+                    // Restore purchases link
+                    Button {
+                        Task {
+                            do {
+                                try await premiumManager.restorePurchases()
+                            } catch {
+                                premiumManager.errorMessage = error.localizedDescription
+                                showingError = true
+                            }
+                        }
+                    } label: {
+                        Text("Restore Purchases")
+                            .font(.caption)
+                            .foregroundColor(.blue)
+                    }
+                    .disabled(premiumManager.isProcessingPurchase)
                 }
-            } message: {
-                Text(storeManager.errorMessage ?? "An unknown error occurred")
+                .padding(.vertical, 20)
+
+                // Fine print
+                Text("Payment will be charged to your Apple ID account. Price shown is in USD and may vary by region.")
+                    .font(.caption2)
+                    .foregroundColor(.secondary)
+                    .multilineTextAlignment(.center)
+                    .padding(.horizontal)
             }
+            .padding()
+        }
+        .alert("Purchase Error", isPresented: $showingError) {
+            Button("OK", role: .cancel) {
+                premiumManager.errorMessage = nil
+            }
+        } message: {
+            Text(premiumManager.errorMessage ?? "An unknown error occurred")
         }
     }
 }
@@ -197,7 +195,15 @@ struct GameInfoBanner: View {
             Spacer()
         }
         .padding()
-        .background(Color(.systemBackground))
+        .background(
+            Group {
+                #if os(macOS)
+                Color(nsColor: .windowBackgroundColor)
+                #else
+                Color(UIColor.systemBackground)
+                #endif
+            }
+        )
         .cornerRadius(12)
         .shadow(color: .black.opacity(0.1), radius: 5, y: 2)
     }
@@ -247,13 +253,13 @@ struct SocialProofCard: View {
                     .foregroundColor(.secondary)
             }
 
-            Text("\"Used this for the Argentina match. Got to my seat 45 minutes early with zero stress. Worth every penny!\"")
+            Text("\"The free version convinced me. Upgraded to Premium for unlimited schedules and real-time updates. Best $5 I've spent!\"")
                 .font(.body)
                 .italic()
                 .multilineTextAlignment(.center)
                 .foregroundColor(.primary)
 
-            Text("— Javi M., Miami")
+            Text("— Maria S., Verified User")
                 .font(.caption)
                 .foregroundColor(.secondary)
 

@@ -62,7 +62,7 @@ struct ParkingAppPickerView: View {
                     }
                     .padding(.horizontal)
                     .padding(.vertical, 12)
-                    .background(Color(.systemGray6))
+                    .background(Color.gray.opacity(0.12))
                     .cornerRadius(12)
                 }
                 .padding(.top, 32)
@@ -77,13 +77,23 @@ struct ParkingAppPickerView: View {
                     appsList
                 }
             }
+            #if os(iOS) || os(tvOS) || os(visionOS)
             .navigationBarTitleDisplayMode(.inline)
+            #endif
             .toolbar {
+                #if os(iOS) || os(tvOS) || os(visionOS)
                 ToolbarItem(placement: .navigationBarTrailing) {
                     Button("Cancel") {
                         dismiss()
                     }
                 }
+                #elseif os(macOS)
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+                #endif
             }
             .onAppear {
                 availableApps = ParkingReservationService.shared.getAvailableParkingApps()
@@ -162,7 +172,11 @@ struct ParkingAppPickerView: View {
                     .foregroundColor(.secondary)
             }
         }
+        #if os(iOS) || os(tvOS) || os(visionOS)
         .listStyle(.insetGrouped)
+        #elseif os(macOS)
+        .listStyle(.inset)
+        #endif
     }
 
     private func appColor(for app: ParkingReservationService.ParkingApp) -> Color {
