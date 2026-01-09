@@ -91,3 +91,14 @@ iOSInjectionProject/
 
 # Mac
 .DS_Store
+
+# Environment Variables & Secrets
+.env
+*.mobileprovision
+*.p12
+*.cer
+*.certSigningRequest
+
+# Archives
+*.xcarchive
+Export/
