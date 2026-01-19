@@ -22,12 +22,15 @@ class AIChatbotService: ObservableObject {
     private var scheduleContext: GameSchedule?
     private let knowledgeBase: StadiumKnowledgeBase
     private let wayfindingService = IndoorWayfindingService.shared
+    private let openAI = OpenAIService.shared
+    private let ragService = StadiumRAGService.shared
+    private let premiumManager = PremiumManager.shared
 
     private init() {
         self.knowledgeBase = StadiumKnowledgeBase()
 
         // Add welcome message
-        addSystemMessage("Hi! I'm your FIFA 2026 game day assistant. I can help you with stadium info, directions, food options, parking, and more. How can I help you today?")
+        addSystemMessage("Hi! I'm your World Cup 2026 assistant. I can help you with stadium info, directions, food options, parking, and more. How can I help you today?")
     }
 
     // MARK: - Public Methods
@@ -93,6 +96,81 @@ class AIChatbotService: ObservableObject {
 
     /// Generate contextual AI response based on user query
     private func generateResponse(for query: String) async -> String {
+        // Premium users get GPT-4 Mini with RAG
+        if premiumManager.canAccessAIChatbot {
+            do {
+                return try await generateAIResponse(for: query)
+            } catch {
+                print("⚠️ AI generation failed: \(error.localizedDescription). Falling back to pattern matching.")
+                // Fall back to pattern matching on error
+            }
+        }
+
+        // Free users or fallback: Use pattern matching
+        return generatePatternMatchedResponse(for: query)
+    }
+
+    /// Generate AI-powered response using GPT-4 Mini with RAG
+    private func generateAIResponse(for query: String) async throws -> String {
+        // 1. Retrieve relevant context from RAG
+        let ragContext = await ragService.retrieveContext(for: query, topK: 3)
+
+        // 2. Build system prompt with user context
+        var systemPrompt = buildSystemPrompt()
+
+        // 3. Get conversation history (last 5 messages for context)
+        let recentMessages = Array(messages.suffix(6)) // Include current query
+
+        // 4. Call GPT-4 Mini
+        let response = try await openAI.chatCompletion(
+            messages: recentMessages,
+            systemPrompt: systemPrompt,
+            context: ragContext
+        )
+
+        return response
+    }
+
+    /// Build system prompt with user context
+    private func buildSystemPrompt() -> String {
+        var prompt = """
+        You are a helpful World Cup 2026 game day assistant. Your role is to help fans have a stress-free, enjoyable experience attending matches.
+
+        GUIDELINES:
+        - Be concise and actionable (2-4 short paragraphs max)
+        - Use bullet points for lists
+        - Include relevant emojis sparingly
+        - Focus on practical tips
+        - If you don't know something, admit it and suggest where to find the answer
+        - Never make up information
+        - Prioritize safety and security
+        - Be empathetic to anxious or stressed users
+        """
+
+        // Add stadium context if available
+        if let stadium = stadiumContext {
+            prompt += "\n\nCURRENT STADIUM: \(stadium.name)"
+            prompt += "\nLocation: \(stadium.city)"
+            prompt += "\nCapacity: \(stadium.capacity.formatted())"
+        }
+
+        // Add schedule context if available
+        if let schedule = scheduleContext {
+            prompt += "\n\nUSER'S GAME: \(schedule.game.displayName)"
+            prompt += "\nKickoff: \(schedule.game.formattedKickoff)"
+            prompt += "\nRecommended Gate: \(schedule.recommendedGate.name)"
+            if let section = schedule.sectionNumber {
+                prompt += "\nUser's Section: \(section)"
+            }
+            prompt += "\nStarting from: \(schedule.userLocation.name)"
+            prompt += "\nTransportation: \(schedule.transportationMode.rawValue)"
+        }
+
+        return prompt
+    }
+
+    /// Generate response using pattern matching (fallback for free users)
+    private func generatePatternMatchedResponse(for query: String) -> String {
         let lowercaseQuery = query.lowercased()
 
         // Stadium-specific questions
@@ -198,7 +276,7 @@ class AIChatbotService: ObservableObject {
             For the most accurate weather forecast, I recommend checking your weather app closer to game day.
 
             General Tips:
-            • Most FIFA 2026 stadiums have partial or full roofs
+            • Most World Cup 2026 stadiums have partial or full roofs
             • Bring sunscreen for day games
             • Light jacket recommended for evening games
             • Check the stadium's bag policy before bringing umbrellas
@@ -230,7 +308,7 @@ class AIChatbotService: ObservableObject {
                 return """
                 ♿️ Accessibility at \(stadium.name):
 
-                All FIFA 2026 venues are ADA compliant with:
+                All World Cup 2026 venues are ADA compliant with:
                 • Wheelchair-accessible entrances at all gates
                 • Elevators and ramps throughout
                 • Accessible seating sections
@@ -253,7 +331,7 @@ class AIChatbotService: ObservableObject {
                 return """
                 💳 Payment at \(stadium.name):
 
-                ⚠️ Most FIFA 2026 stadiums are CASHLESS venues.
+                ⚠️ Most World Cup 2026 stadiums are CASHLESS venues.
 
                 Accepted payment methods:
                 • Credit/Debit cards
@@ -384,7 +462,7 @@ class StadiumKnowledgeBase {
             return """
             🍔 Stadium Food Options:
 
-            FIFA 2026 venues offer:
+            World Cup 2026 venues offer:
             • Traditional stadium food
             • Local regional specialties
             • International cuisine

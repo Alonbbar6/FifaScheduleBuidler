@@ -22,8 +22,8 @@ struct GoogleMapsConfig {
             return key
         }
 
-        // Option 3: Hardcoded (for testing only)
-        return "AIzaSyB4xQdbOe0MNY8k5ZDMgL3BNJK615SqYyc"
+        // No API key configured - mock mode will be used
+        return ""
     }()
 
     // MARK: - API Endpoints

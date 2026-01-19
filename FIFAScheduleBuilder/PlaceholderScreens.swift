@@ -3,7 +3,6 @@ import SwiftUI
 // MARK: - Settings View
 
 struct AppSettingsView: View {
-    @State private var useMockMode = GoogleMapsConfig.useMockMode
     @ObservedObject private var layoutPreference = LayoutPreferenceService.shared
 
     var body: some View {
@@ -31,31 +30,6 @@ struct AppSettingsView: View {
                         .foregroundColor(.secondary)
                 }
 
-                Section(header: Text("App Mode")) {
-                    Toggle(isOn: $useMockMode) {
-                        VStack(alignment: .leading, spacing: 4) {
-                            Text("Demo Mode")
-                                .font(.headline)
-                            Text(useMockMode ? "Using mock data (no API calls)" : "Using real Google Maps APIs")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .onChange(of: useMockMode) { _, newValue in
-                        GoogleMapsConfig.useMockMode = newValue
-                    }
-
-                    if !useMockMode {
-                        HStack {
-                            Image(systemName: "exclamationmark.triangle.fill")
-                                .foregroundColor(.orange)
-                            Text("Requires Google Maps API key")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                }
-
                 Section(header: Text("About")) {
                     HStack {
                         Text("Version")
@@ -67,15 +41,21 @@ struct AppSettingsView: View {
                     HStack {
                         Text("Build")
                         Spacer()
-                        Text("2026.1")
+                        Text("1")
                             .foregroundColor(.secondary)
                     }
                 }
 
+                Section(header: Text("Legal")) {
+                    Text("This app is not affiliated with, endorsed by, or connected to FIFA, the FIFA World Cup, or any official tournament organizers. All tournament data is provided for informational purposes only.")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+
                 Section(header: Text("Support")) {
-                    Link("Help Center", destination: URL(string: "https://example.com/help")!)
-                    Link("Contact Us", destination: URL(string: "https://example.com/contact")!)
-                    Link("Privacy Policy", destination: URL(string: "https://example.com/privacy")!)
+                    Link("Help Center", destination: URL(string: "https://alonbbar6.github.io/FifaScheduleBuidler/")!)
+                    Link("Contact Us", destination: URL(string: "mailto:alonbbar@gmail.com")!)
+                    Link("Privacy Policy", destination: URL(string: "https://alonbbar6.github.io/FifaScheduleBuidler/privacy.html")!)
                 }
 
                 Section(header: Text("Features")) {

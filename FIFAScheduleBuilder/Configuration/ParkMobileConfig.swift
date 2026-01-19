@@ -13,8 +13,8 @@ struct ParkMobileConfig {
 
     private init() {
         // Try to load from environment variables first, then fall back to hardcoded values
-        self.apiKey = ProcessInfo.processInfo.environment["ParkMobile"]
-            ?? "6cf11e2b-4200-4cf8-960a-8602a815e814"
+        self.apiKey = ProcessInfo.processInfo.environment["PARKMOBILE_API_KEY"]
+            ?? ""
 
         self.baseURL = "https://api.parkmobile.io/v1"
     }

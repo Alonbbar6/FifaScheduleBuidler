@@ -63,7 +63,7 @@ struct ScheduleBuilderHomeView: View {
                             .font(.system(.largeTitle, design: .rounded, weight: .bold))
                             .multilineTextAlignment(.center)
                         
-                        Text("Get a custom game-day schedule for just $2.99. Real-time crowd updates, optimized routes, and guaranteed on-time arrival.")
+                        Text("Get a custom game-day schedule. Real-time crowd updates and optimized routes to help you arrive on time.")
                             .font(.title3)
                             .foregroundColor(.secondary)
                             .multilineTextAlignment(.center)
@@ -77,7 +77,7 @@ struct ScheduleBuilderHomeView: View {
                     } label: {
                         HStack {
                             Image(systemName: "sparkles")
-                            Text("Build My Schedule - $2.99")
+                            Text("Build My Schedule")
                             Image(systemName: "sparkles")
                         }
                         .font(.headline)
@@ -87,12 +87,22 @@ struct ScheduleBuilderHomeView: View {
                     .buttonStyle(.borderedProminent)
                     .controlSize(.large)
                     .padding(.horizontal)
-                    
+
+                    // Limited time free access
+                    HStack(spacing: 6) {
+                        Image(systemName: "clock.badge.checkmark.fill")
+                            .foregroundColor(.orange)
+                        Text("Limited time: Free access")
+                            .font(.subheadline)
+                            .fontWeight(.medium)
+                            .foregroundColor(.orange)
+                    }
+
                     // Trust Indicators
                     HStack(spacing: 24) {
                         TrustBadge(icon: "lock.shield.fill", text: "Secure")
                         TrustBadge(icon: "clock.fill", text: "Instant")
-                        TrustBadge(icon: "checkmark.seal.fill", text: "Guaranteed")
+                        TrustBadge(icon: "checkmark.seal.fill", text: "Reliable")
                     }
                     .font(.caption)
                     .foregroundColor(.secondary)
@@ -129,26 +139,19 @@ struct ScheduleBuilderHomeView: View {
                     Divider()
                         .padding(.vertical)
                     
-                    // Social Proof
+                    // App Info
                     VStack(spacing: 16) {
-                        Text("Trusted by 10,000+ FIFA Fans")
+                        Text("World Cup 2026 Schedule Builder")
                             .font(.headline)
-                        
-                        HStack(spacing: 4) {
-                            ForEach(0..<5) { _ in
-                                Image(systemName: "star.fill")
-                                    .foregroundColor(.yellow)
-                            }
-                        }
-                        
-                        Text("4.9 out of 5 stars")
+
+                        Text("Plan your perfect game day experience")
                             .font(.caption)
                             .foregroundColor(.secondary)
                     }
                 }
                 .padding(.bottom, 40)
             }
-            .navigationTitle("FIFA Schedule")
+            .navigationTitle("MatchPath")
         }
     }
 }
@@ -254,6 +257,16 @@ struct MySchedulesView: View {
                 .font(.body)
                 .foregroundColor(.secondary)
                 .multilineTextAlignment(.center)
+
+            HStack(spacing: 6) {
+                Image(systemName: "clock.badge.checkmark.fill")
+                    .foregroundColor(.orange)
+                Text("Limited time: Free access")
+                    .font(.caption)
+                    .fontWeight(.medium)
+                    .foregroundColor(.orange)
+            }
+            .padding(.top, 8)
         }
         .padding()
     }

@@ -2,33 +2,71 @@ import Foundation
 import Combine
 import StoreKit
 
-/// Manages premium features and In-App Purchase
+/// Manages premium features and In-App Purchase using StoreKit 2
 /// Free tier: 1 schedule, basic features
-/// Premium ($4.99): Unlimited schedules, AI chatbot, real-time crowd data, advanced features
+/// Premium: Unlimited schedules, AI chatbot, real-time crowd data, advanced features
+@MainActor
 class PremiumManager: ObservableObject {
     static let shared = PremiumManager()
 
     // MARK: - Published Properties
 
-    @Published var isPremium: Bool = false
+    /// Set to true to give all users free access (no paywall)
+    /// Set to false when IAP products are configured in App Store Connect
+    private static let FREE_ACCESS_FOR_ALL = true
+
+    @Published var isPremium: Bool = FREE_ACCESS_FOR_ALL
     @Published var isProcessingPurchase: Bool = false
     @Published var errorMessage: String? = nil
+    @Published private(set) var product: Product?
 
     // MARK: - Constants
 
     /// Free tier schedule limit
     static let FREE_SCHEDULE_LIMIT = 1
 
-    /// Premium price
-    static let PREMIUM_PRICE = "$4.99"
-
     /// Product ID for In-App Purchase
-    private let premiumProductID = "com.fifaschedulebuilder.premium"
+    private let premiumProductID = "com.matchpath.premium"
+
+    /// Transaction listener
+    private var transactionListener: Task<Void, Error>?
+
+    // MARK: - Computed Properties
+
+    /// Get display price from StoreKit (dynamic)
+    static var PREMIUM_PRICE: String {
+        shared.product?.displayPrice ?? "$4.99"
+    }
 
     // MARK: - Initialization
 
     private init() {
-        loadPremiumStatus()
+        // Start listening for transactions
+        transactionListener = listenForTransactions()
+
+        Task {
+            await loadProduct()
+            await updatePurchaseStatus()
+        }
+    }
+
+    deinit {
+        transactionListener?.cancel()
+    }
+
+    // MARK: - Product Loading
+
+    /// Load the premium product from App Store
+    func loadProduct() async {
+        do {
+            let products = try await Product.products(for: [premiumProductID])
+            if let premiumProduct = products.first {
+                self.product = premiumProduct
+                print("💎 Premium product loaded: \(premiumProduct.displayPrice)")
+            }
+        } catch {
+            print("❌ Failed to load premium product: \(error)")
+        }
     }
 
     // MARK: - Premium Status
@@ -38,18 +76,54 @@ class PremiumManager: ObservableObject {
         return isPremium
     }
 
-    /// Load premium status from UserDefaults (for development)
-    /// In production, this would check StoreKit receipt validation
-    private func loadPremiumStatus() {
-        isPremium = UserDefaults.standard.bool(forKey: "isPremiumUser")
-        print("💎 Premium status loaded: \(isPremium)")
+    /// Update purchase status from App Store
+    private func updatePurchaseStatus() async {
+        // If free access mode is enabled, always grant premium
+        if Self.FREE_ACCESS_FOR_ALL {
+            isPremium = true
+            return
+        }
+
+        // Check for active subscription/purchase
+        for await result in Transaction.currentEntitlements {
+            do {
+                let transaction = try checkVerified(result)
+                if transaction.productID == premiumProductID {
+                    isPremium = true
+                    print("💎 Premium status verified: active")
+                    return
+                }
+            } catch {
+                print("❌ Transaction verification failed: \(error)")
+            }
+        }
+        isPremium = false
+        print("💎 Premium status: not active")
     }
 
-    /// Save premium status
-    private func savePremiumStatus(_ status: Bool) {
-        isPremium = status
-        UserDefaults.standard.set(status, forKey: "isPremiumUser")
-        print("💎 Premium status saved: \(status)")
+    /// Verify transaction
+    private nonisolated func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+        switch result {
+        case .unverified:
+            throw StoreError.failedVerification
+        case .verified(let safe):
+            return safe
+        }
+    }
+
+    /// Listen for transaction updates
+    private func listenForTransactions() -> Task<Void, Error> {
+        return Task.detached { [weak self] in
+            for await result in Transaction.updates {
+                do {
+                    let transaction = try self?.checkVerified(result)
+                    await self?.updatePurchaseStatus()
+                    await transaction?.finish()
+                } catch {
+                    print("❌ Transaction update failed: \(error)")
+                }
+            }
+        }
     }
 
     // MARK: - Schedule Limits
@@ -95,53 +169,79 @@ class PremiumManager: ObservableObject {
 
     // MARK: - Purchase Flow
 
-    /// Initiate premium purchase
+    /// Initiate premium purchase using StoreKit 2
     func purchasePremium() async throws {
-        await MainActor.run {
-            isProcessingPurchase = true
+        guard let product = product else {
+            // Try to load product if not available
+            await loadProduct()
+            guard let product = self.product else {
+                throw StoreError.productNotFound
+            }
+            try await performPurchase(product)
+            return
         }
 
-        // TODO: Implement actual StoreKit 2 purchase flow
-        // For now, this is a placeholder for development
+        try await performPurchase(product)
+    }
+
+    private func performPurchase(_ product: Product) async throws {
+        isProcessingPurchase = true
+        errorMessage = nil
 
         print("💎 Initiating premium purchase...")
 
-        // Simulate purchase delay
-        try await Task.sleep(nanoseconds: 2_000_000_000) // 2 seconds
+        do {
+            let result = try await product.purchase()
 
-        // Mock successful purchase for development
-        await MainActor.run {
-            savePremiumStatus(true)
+            switch result {
+            case .success(let verification):
+                let transaction = try checkVerified(verification)
+                await updatePurchaseStatus()
+                await transaction.finish()
+                isProcessingPurchase = false
+                print("✅ Premium purchase successful!")
+
+            case .userCancelled:
+                isProcessingPurchase = false
+                print("ℹ️ User cancelled purchase")
+
+            case .pending:
+                isProcessingPurchase = false
+                errorMessage = "Purchase is pending approval"
+                print("⏳ Purchase pending approval")
+
+            @unknown default:
+                isProcessingPurchase = false
+                throw StoreError.productNotFound
+            }
+        } catch {
             isProcessingPurchase = false
+            errorMessage = error.localizedDescription
+            throw error
         }
-
-        print("✅ Premium purchase successful!")
     }
 
-    /// Restore previous purchases
+    /// Restore previous purchases using StoreKit 2
     func restorePurchases() async throws {
-        await MainActor.run {
-            isProcessingPurchase = true
-        }
+        isProcessingPurchase = true
+        errorMessage = nil
 
         print("🔄 Restoring purchases...")
 
-        // TODO: Implement actual StoreKit 2 restore flow
-        // For now, this is a placeholder
+        do {
+            try await AppStore.sync()
+            await updatePurchaseStatus()
+            isProcessingPurchase = false
 
-        try await Task.sleep(nanoseconds: 1_000_000_000) // 1 second
-
-        // Check if user has purchased before (mock for development)
-        let hasPreviousPurchase = UserDefaults.standard.bool(forKey: "isPremiumUser")
-
-        await MainActor.run {
-            if hasPreviousPurchase {
-                savePremiumStatus(true)
+            if isPremium {
                 print("✅ Purchases restored successfully!")
             } else {
                 print("ℹ️ No previous purchases found")
             }
+        } catch {
             isProcessingPurchase = false
+            errorMessage = error.localizedDescription
+            throw error
         }
     }
 
@@ -150,12 +250,12 @@ class PremiumManager: ObservableObject {
     #if DEBUG
     /// Toggle premium status for testing (DEBUG only)
     func togglePremiumForTesting() {
-        savePremiumStatus(!isPremium)
+        isPremium = !isPremium
     }
 
     /// Reset premium status for testing (DEBUG only)
     func resetPremiumForTesting() {
-        savePremiumStatus(false)
+        isPremium = false
     }
     #endif
 

@@ -236,71 +236,36 @@ struct PaywallFeatureRow: View {
 struct SocialProofCard: View {
     var body: some View {
         VStack(spacing: 16) {
-            HStack(spacing: 8) {
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
-                Image(systemName: "star.fill")
-                    .foregroundColor(.yellow)
+            Image(systemName: "checkmark.shield.fill")
+                .font(.system(size: 40))
+                .foregroundColor(.green)
 
-                Text("4.9/5")
-                    .font(.headline)
-                    .foregroundColor(.secondary)
-            }
+            Text("Premium Benefits")
+                .font(.headline)
 
-            Text("\"The free version convinced me. Upgraded to Premium for unlimited schedules and real-time updates. Best $5 I've spent!\"")
-                .font(.body)
-                .italic()
-                .multilineTextAlignment(.center)
-                .foregroundColor(.primary)
-
-            Text("— Maria S., Verified User")
-                .font(.caption)
-                .foregroundColor(.secondary)
-
-            Divider()
-                .padding(.vertical, 8)
-
-            HStack(spacing: 24) {
-                VStack {
-                    Text("12,847")
-                        .font(.title2)
-                        .fontWeight(.bold)
+            VStack(alignment: .leading, spacing: 12) {
+                HStack(spacing: 12) {
+                    Image(systemName: "infinity")
                         .foregroundColor(.blue)
-                    Text("Fans Helped")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .frame(width: 24)
+                    Text("Unlimited game-day schedules")
+                        .font(.subheadline)
                 }
 
-                Divider()
-                    .frame(height: 40)
-
-                VStack {
-                    Text("94%")
-                        .font(.title2)
-                        .fontWeight(.bold)
-                        .foregroundColor(.green)
-                    Text("On-Time Rate")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-
-                Divider()
-                    .frame(height: 40)
-
-                VStack {
-                    Text("38 min")
-                        .font(.title2)
-                        .fontWeight(.bold)
+                HStack(spacing: 12) {
+                    Image(systemName: "bolt.fill")
                         .foregroundColor(.orange)
-                    Text("Avg. Early")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
+                        .frame(width: 24)
+                    Text("Real-time crowd & traffic updates")
+                        .font(.subheadline)
+                }
+
+                HStack(spacing: 12) {
+                    Image(systemName: "message.fill")
+                        .foregroundColor(.purple)
+                        .frame(width: 24)
+                    Text("AI-powered game day assistant")
+                        .font(.subheadline)
                 }
             }
         }

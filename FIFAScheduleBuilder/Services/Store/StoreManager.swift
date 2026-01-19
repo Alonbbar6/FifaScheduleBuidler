@@ -9,7 +9,7 @@ class StoreManager: ObservableObject {
 
     // Product IDs
     enum ProductID: String, CaseIterable {
-        case schedule = "com.fifaschedulebuilder.schedule"
+        case schedule = "com.matchpath.schedule"
 
         var displayName: String {
             switch self {
